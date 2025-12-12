@@ -6,7 +6,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -67,36 +67,15 @@ app.post('/scrape', async (req, res) => {
 
 // The scraper function
 async function scrapeGoogleMaps(query, limit) {
-    // Find Chrome on the system
-    const chromePaths = [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // macOS
-        '/usr/bin/google-chrome',  // Linux
-        '/usr/bin/chromium-browser',  // Linux Alt
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'  // Windows
-    ];
-
-    let executablePath = null;
-    for (const p of chromePaths) {
-        try {
-            require('fs').accessSync(p);
-            executablePath = p;
-            break;
-        } catch (e) { }
-    }
-
-    if (!executablePath) {
-        throw new Error('Chrome not found. Please install Google Chrome.');
-    }
-
     const browser = await puppeteer.launch({
         headless: 'new',
-        executablePath: executablePath,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--window-size=1280,800'
+            '--single-process',
+            '--no-zygote'
         ]
     });
 
