@@ -12,14 +12,11 @@ on:
         description: 'Number of leads'
         required: false
         default: '10'
-      callback_url:
-        description: 'Webhook URL to send results'
-        required: false
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
       - name: Install dependencies
         run: npm ci
@@ -53,13 +51,3 @@ jobs:
           name: leads-${{ github.run_id }}
           path: results.json
           retention-days: 1
-          
-      - name: Send webhook (if callback provided)
-        if: ${{ github.event.client_payload.callback_url || github.event.inputs.callback_url }}
-        run: |
-          CALLBACK="${{ github.event.client_payload.callback_url || github.event.inputs.callback_url }}"
-          if [ -n "$CALLBACK" ]; then
-            curl -X POST "$CALLBACK" \
-              -H "Content-Type: application/json" \
-              -d @results.json
-          fi
