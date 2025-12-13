@@ -45,9 +45,34 @@ jobs:
           # Output results
           cat results.json
           
-      - name: Upload results
+      - name: Upload results artifact
         uses: actions/upload-artifact@v4
         with:
           name: leads-${{ github.run_id }}
           path: results.json
           retention-days: 1
+
+      - name: Send results to Lulo webhook
+        env:
+          WEBHOOK_URL: https://heylulo.com/api/leads/webhook
+          WEBHOOK_TOKEN: ${{ secrets.WEBHOOK_TOKEN }}
+        run: |
+          # Add run_id to results
+          RUN_ID="${{ github.run_id }}"
+          
+          # Modify results.json to include run_id
+          if [ -f results.json ]; then
+            # Use jq if available, else use node
+            if command -v jq &> /dev/null; then
+              jq --arg run_id "$RUN_ID" '. + {run_id: $run_id}' results.json > temp.json && mv temp.json results.json
+            else
+              node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync('results.json')); d.run_id='$RUN_ID'; fs.writeFileSync('results.json', JSON.stringify(d));"
+            fi
+            
+            echo "Sending results to webhook..."
+            curl -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $WEBHOOK_TOKEN" \
+              -d @results.json \
+              --fail --silent --show-error || echo "Webhook failed, continuing..."
+          fi
