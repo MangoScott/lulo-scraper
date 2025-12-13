@@ -17,7 +17,6 @@ async function scrapeGoogleMaps(query, limit) {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--single-process',
             '--no-zygote'
         ]
     });
@@ -145,8 +144,10 @@ async function main() {
         }
     } catch (error) {
         console.error('Error:', error.message);
+        // Important: Output valid JSON to stdout so it can be captured
         console.log(JSON.stringify({ error: error.message, leads: [], count: 0 }));
-        process.exit(1);
+        process.exit(0); // Exit gracefully so artifact is created? Or fail? 
+        // If we fail with 1, the `|| true` in bash handles it, but we want the JSON.
     }
 }
 
