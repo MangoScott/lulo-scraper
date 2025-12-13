@@ -36,12 +36,25 @@ jobs:
           # Get query from dispatch or input
           QUERY="${{ github.event.client_payload.query || github.event.inputs.query }}"
           LIMIT="${{ github.event.client_payload.limit || github.event.inputs.limit || '10' }}"
+          USER_ID="${{ github.event.client_payload.user_id || 'anonymous' }}"
           
-          echo "Scraping: $QUERY (limit: $LIMIT)"
+          echo "Scraping: $QUERY (limit: $LIMIT) for user: $USER_ID"
           
           # Run the scraper and save output
-          node scrape-cli.js "$QUERY" --limit "$LIMIT" --json > results.json 2>&1 || true
+          node scrape-cli.js "$QUERY" --limit "$LIMIT" --json > raw_results.json 2>&1 || true
           
+          # Inject user_id into results
+          if [ -f raw_results.json ]; then
+            if command -v jq &> /dev/null; then
+               jq --arg uid "$USER_ID" '. + {user_id: $uid}' raw_results.json > results.json
+            else
+               node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync('raw_results.json')); d.user_id='$USER_ID'; fs.writeFileSync('results.json', JSON.stringify(d));"
+            fi
+            rm raw_results.json
+          else
+            echo '{"leads":[], "count":0, "user_id": "'"$USER_ID"'"}' > results.json
+          fi
+
           # Output results
           cat results.json
           
