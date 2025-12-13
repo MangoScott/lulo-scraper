@@ -1,0 +1,65 @@
+name: Scrape Leads
+
+on:
+  repository_dispatch:
+    types: [scrape]
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query (e.g., dentists in dallas)'
+        required: true
+      limit:
+        description: 'Number of leads'
+        required: false
+        default: '10'
+      callback_url:
+        description: 'Webhook URL to send results'
+        required: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run scraper
+        id: scrape
+        run: |
+          # Get query from dispatch or input
+          QUERY="${{ github.event.client_payload.query || github.event.inputs.query }}"
+          LIMIT="${{ github.event.client_payload.limit || github.event.inputs.limit || '10' }}"
+          
+          echo "Scraping: $QUERY (limit: $LIMIT)"
+          
+          # Run the scraper and save output
+          node scrape-cli.js "$QUERY" --limit "$LIMIT" --json > results.json 2>&1 || true
+          
+          # Output results
+          cat results.json
+          
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: leads-${{ github.run_id }}
+          path: results.json
+          retention-days: 1
+          
+      - name: Send webhook (if callback provided)
+        if: ${{ github.event.client_payload.callback_url || github.event.inputs.callback_url }}
+        run: |
+          CALLBACK="${{ github.event.client_payload.callback_url || github.event.inputs.callback_url }}"
+          if [ -n "$CALLBACK" ]; then
+            curl -X POST "$CALLBACK" \
+              -H "Content-Type: application/json" \
+              -d @results.json
+          fi
