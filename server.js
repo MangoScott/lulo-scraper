@@ -67,7 +67,8 @@ app.post('/scrape', async (req, res) => {
 
 // The scraper function
 async function scrapeGoogleMaps(query, limit) {
-    const browser = await puppeteer.launch({
+    // Use system Chromium if available (Docker/Fly.io), otherwise bundled
+    const launchOptions = {
         headless: 'new',
         args: [
             '--no-sandbox',
@@ -77,7 +78,14 @@ async function scrapeGoogleMaps(query, limit) {
             '--single-process',
             '--no-zygote'
         ]
-    });
+    };
+
+    // Check for system Chromium (Docker)
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    const browser = await puppeteer.launch(launchOptions);
 
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
