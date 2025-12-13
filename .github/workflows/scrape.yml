@@ -41,7 +41,7 @@ jobs:
           echo "Scraping: $QUERY (limit: $LIMIT) for user: $USER_ID"
           
           # Run the scraper and save output
-          node scrape-cli.js "$QUERY" --limit "$LIMIT" --json > raw_results.json 2>&1 || true
+          node scrape-cli.js "$QUERY" --limit "$LIMIT" --json > raw_results.json || true
           
           # Inject user_id into results
           if [ -f raw_results.json ]; then
