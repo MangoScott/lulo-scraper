@@ -11,8 +11,47 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
 app.use(express.json());
+
+// Security Middleware
+const API_KEY = process.env.SCRAPER_API_KEY;
+const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'https://heylulo.com',
+    'https://lulo-agent.pages.dev'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        // Check if origin is allowed (substring match for previews or exact for prod)
+        const allowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o) || origin.includes('lulo-agent'));
+        if (allowed) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
+
+// Authorization Check
+app.use((req, res, next) => {
+    // Skip health check
+    if (req.path === '/health') return next();
+
+    const authHeader = req.headers.authorization;
+    if (!API_KEY) {
+        console.warn('⚠️ No SCRAPER_API_KEY set. Allowing all requests (Insecure).');
+        return next();
+    }
+
+    if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
